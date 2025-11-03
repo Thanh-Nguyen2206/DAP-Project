@@ -1,0 +1,707 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Stock Analysis{% endblock %}
+
+{% block content %}
+<div class="row mt-3">
+    <!-- Sidebar Controls -->
+    <div class="col-lg-3">
+        <div class="sidebar">
+            <h5><i class="fas fa-cog me-2"></i>Configuration</h5>
+            
+            <!-- Stock Selection -->
+            <div class="mb-3">
+                <label for="stockSelect" class="form-label"><i class="fas fa-chart-line me-1"></i>Stock Symbol</label>
+                <select class="form-select" id="stockSelect">
+                    {% for stock in stocks %}
+                    <option value="{{ stock }}" {% if stock == selected_stock %}selected{% endif %}>{{ stock }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Data Frequency -->
+            <div class="mb-3">
+                <label for="frequencySelect" class="form-label"><i class="fas fa-clock me-1"></i>Data Frequency</label>
+                <select class="form-select" id="frequencySelect">
+                    {% for freq in frequencies %}
+                    <option value="{{ freq }}" {% if freq == selected_frequency %}selected{% endif %}>{{ freq }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Date Range -->
+            <div class="mb-3">
+                <label for="startDate" class="form-label"><i class="fas fa-calendar me-1"></i>Start Date</label>
+                <input type="date" class="form-control" id="startDate" value="2025-06-01">
+            </div>
+            
+            <div class="mb-3">
+                <label for="endDate" class="form-label"><i class="fas fa-calendar me-1"></i>End Date</label>
+                <input type="date" class="form-control" id="endDate" value="">
+            </div>
+            
+            <!-- Chart Type -->
+            <div class="mb-3">
+                <label for="chartTypeSelect" class="form-label"><i class="fas fa-chart-bar me-1"></i>Chart Type</label>
+                <select class="form-select" id="chartTypeSelect">
+                    {% for chart_type in chart_types %}
+                    <option value="{{ chart_type }}" {% if chart_type == selected_chart_type %}selected{% endif %}>{{ chart_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Update Button -->
+            <div class="d-grid">
+                <button class="btn btn-primary" id="updateData">
+                    <i class="fas fa-sync me-1"></i>Update Data
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="col-lg-9">
+        <!-- Key Metrics -->
+        <div class="row" id="metricsRow">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Current Price</div>
+                    <div class="metric-value" id="currentPrice">--</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Price Change</div>
+                    <div class="metric-value" id="priceChange">--</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Volume</div>
+                    <div class="metric-value" id="volume">--</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">RSI</div>
+                    <div class="metric-value" id="rsi">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="technical-tab" data-bs-toggle="tab" data-bs-target="#technical" type="button" role="tab">
+                    <i class="fas fa-chart-line me-1"></i>Technical Analysis
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="fundamental-tab" data-bs-toggle="tab" data-bs-target="#fundamental" type="button" role="tab">
+                    <i class="fas fa-chart-bar me-1"></i>Fundamental Analysis
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="prediction-tab" data-bs-toggle="tab" data-bs-target="#prediction" type="button" role="tab">
+                    <i class="fas fa-crystal-ball me-1"></i>Price Prediction
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="chatbot-tab" data-bs-toggle="tab" data-bs-target="#chatbot" type="button" role="tab">
+                    <i class="fas fa-robot me-1"></i>AI Chatbot
+                </button>
+            </li>
+        </ul>
+        
+        <!-- Tab Content -->
+        <div class="tab-content" id="mainTabContent">
+            <!-- Technical Analysis Tab -->
+            <div class="tab-pane fade show active" id="technical" role="tabpanel">
+                <h4><i class="fas fa-chart-line me-2"></i>Technical Analysis</h4>
+                
+                <!-- Moving Average Controls -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="maShort" class="form-label">Short MA Period</label>
+                        <input type="range" class="form-range" id="maShort" min="5" max="50" value="20">
+                        <span id="maShortValue">20</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="maLong" class="form-label">Long MA Period</label>
+                        <input type="range" class="form-range" id="maLong" min="20" max="200" value="50">
+                        <span id="maLongValue">50</span>
+                    </div>
+                </div>
+                
+                <!-- Technical Chart -->
+                <div id="technicalChart" class="mb-4"></div>
+                
+                <!-- Statistics Table -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Price Statistics</h6>
+                        <table class="table table-sm">
+                            <tbody id="priceStats">
+                                <tr><td>Mean</td><td id="meanPrice">--</td></tr>
+                                <tr><td>Median</td><td id="medianPrice">--</td></tr>
+                                <tr><td>Std Dev</td><td id="stdPrice">--</td></tr>
+                                <tr><td>Min</td><td id="minPrice">--</td></tr>
+                                <tr><td>Max</td><td id="maxPrice">--</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Volume Statistics</h6>
+                        <table class="table table-sm">
+                            <tbody id="volumeStats">
+                                <tr><td>Mean Volume</td><td id="meanVolume">--</td></tr>
+                                <tr><td>Max Volume</td><td id="maxVolume">--</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fundamental Analysis Tab -->
+            <div class="tab-pane fade" id="fundamental" role="tabpanel">
+                <h4><i class="fas fa-chart-bar me-2"></i>Fundamental Analysis</h4>
+                
+                <!-- Performance Metrics -->
+                <div class="row mb-4">
+                    <div class="col-md-2">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Total Return</h6>
+                                <h4 id="totalReturn" class="text-primary">--</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Volatility</h6>
+                                <h4 id="volatility" class="text-warning">--</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Sharpe Ratio</h6>
+                                <h4 id="sharpeRatio" class="text-success">--</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Max Drawdown</h6>
+                                <h4 id="maxDrawdown" class="text-danger">--</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Avg Daily Return</h6>
+                                <h4 id="avgDailyReturn" class="text-info">--</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div id="priceDistribution"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="returnsChart"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Prediction Tab -->
+            <div class="tab-pane fade" id="prediction" role="tabpanel">
+                <h4><i class="fas fa-crystal-ball me-2"></i>Price Prediction</h4>
+                
+                <!-- Prediction Controls -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="modelType" class="form-label">Model Type</label>
+                        <select class="form-select" id="modelType">
+                            <option value="Prophet">Prophet</option>
+                            <option value="Random Forest">Random Forest</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="predictionDays" class="form-label">Prediction Days</label>
+                        <input type="number" class="form-control" id="predictionDays" min="1" max="30" value="7">
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-primary mt-4" id="generatePrediction">
+                            <i class="fas fa-magic me-1"></i>Generate Prediction
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Prediction Results -->
+                <div id="predictionResults" style="display: none;">
+                    <!-- Prediction Summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6>Current Price</h6>
+                                    <h4 id="predCurrentPrice" class="text-primary">--</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6>Predicted Price</h6>
+                                    <h4 id="predictedPrice" class="text-success">--</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6>Expected Change</h6>
+                                    <h4 id="expectedChange" class="text-info">--</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Prediction Chart -->
+                    <div id="predictionChart"></div>
+                    
+                    <!-- Model Comparison -->
+                    <div class="mt-4">
+                        <button class="btn btn-secondary" id="compareModels">
+                            <i class="fas fa-balance-scale me-1"></i>Compare Models
+                        </button>
+                        <div id="modelComparison" style="display: none;" class="mt-3">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Next Day Prediction</th>
+                                        <th>Week Average</th>
+                                        <th>Confidence Range</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="comparisonTable">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chatbot Tab -->
+            <div class="tab-pane fade" id="chatbot" role="tabpanel">
+                <h4><i class="fas fa-robot me-2"></i>AI Financial Assistant</h4>
+                
+                <!-- API Key Input -->
+                <div class="mb-3">
+                    <label for="apiKey" class="form-label">OpenAI API Key</label>
+                    <input type="password" class="form-control" id="apiKey" placeholder="Enter your OpenAI API key">
+                    <div class="form-text">Your API key is not stored and only used for this session.</div>
+                </div>
+                
+                <!-- Chat Container -->
+                <div class="chat-container" id="chatContainer">
+                    <div class="chat-message chat-bot">
+                        <strong>AI Assistant:</strong> Hello! I'm your financial assistant. Ask me anything about stocks, markets, or investment strategies. How can I help you today?
+                    </div>
+                </div>
+                
+                <!-- Chat Input -->
+                <div class="mt-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="chatInput" placeholder="Ask me about stocks, analysis, or market insights...">
+                        <button class="btn btn-primary" id="sendMessage">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="mt-3">
+                    <h6>Quick Questions:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary btn-sm mb-2 w-100 quick-question" data-question="What's happening with this stock?">
+                                What's happening with this stock?
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary btn-sm mb-2 w-100 quick-question" data-question="Should I buy or sell?">
+                                Should I buy or sell?
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary btn-sm mb-2 w-100 quick-question" data-question="Explain technical indicators">
+                                Explain technical indicators
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary btn-sm mb-2 w-100 quick-question" data-question="Market outlook for tech stocks?">
+                                Market outlook for tech stocks?
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Disclaimer -->
+                <div class="disclaimer">
+                    <strong><i class="fas fa-exclamation-triangle me-1"></i>Disclaimer:</strong> 
+                    AI responses are for educational purposes only. Always conduct your own research and consult with financial professionals before making investment decisions.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <h5 id="loadingText">Loading data...</h5>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Set current date as default end date
+    const today = new Date().toISOString().split('T')[0];
+    $('#endDate').val(today);
+    
+    // Update slider values
+    $('#maShort').on('input', function() {
+        $('#maShortValue').text($(this).val());
+    });
+    
+    $('#maLong').on('input', function() {
+        $('#maLongValue').text($(this).val());
+    });
+    
+    // Load initial data
+    loadStockData();
+    
+    // Event handlers
+    $('#updateData').click(function() {
+        loadStockData();
+    });
+    
+    $('#maShort, #maLong').on('change', function() {
+        if ($('#technical-tab').hasClass('active')) {
+            loadTechnicalAnalysis();
+        }
+    });
+    
+    // Tab change handlers
+    $('#fundamental-tab').click(function() {
+        setTimeout(() => loadFundamentalAnalysis(), 100);
+    });
+    
+    $('#generatePrediction').click(function() {
+        generatePrediction();
+    });
+    
+    $('#compareModels').click(function() {
+        compareModels();
+    });
+    
+    // Chat functionality
+    $('#sendMessage').click(function() {
+        sendChatMessage();
+    });
+    
+    $('#chatInput').keypress(function(e) {
+        if (e.which === 13) {
+            sendChatMessage();
+        }
+    });
+    
+    $('.quick-question').click(function() {
+        const question = $(this).data('question');
+        $('#chatInput').val(question);
+        sendChatMessage();
+    });
+    
+    // Functions
+    function showLoading(text = 'Loading data...') {
+        $('#loadingText').text(text);
+        $('#loadingModal').modal('show');
+    }
+    
+    function hideLoading() {
+        $('#loadingModal').modal('hide');
+    }
+    
+    function loadStockData() {
+        showLoading('Fetching stock data...');
+        
+        const params = {
+            symbol: $('#stockSelect').val(),
+            start_date: $('#startDate').val(),
+            end_date: $('#endDate').val(),
+            frequency: $('#frequencySelect').val()
+        };
+        
+        $.get('/api/stock_data', params)
+            .done(function(data) {
+                if (data.success) {
+                    updateMetrics(data);
+                    loadTechnicalAnalysis();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .fail(function() {
+                alert('Failed to load stock data');
+            })
+            .always(function() {
+                hideLoading();
+            });
+    }
+    
+    function updateMetrics(data) {
+        $('#currentPrice').text('$' + data.current_price.toFixed(2));
+        
+        const changePercent = ((data.price_change / (data.current_price - data.price_change)) * 100).toFixed(2);
+        const changeColor = data.price_change >= 0 ? 'text-success' : 'text-danger';
+        $('#priceChange').html(`$${data.price_change.toFixed(2)} <small>(${changePercent}%)</small>`);
+        
+        $('#volume').text(data.volume_current.toLocaleString());
+        $('#rsi').text(data.rsi.toFixed(1));
+    }
+    
+    function loadTechnicalAnalysis() {
+        const params = {
+            symbol: $('#stockSelect').val(),
+            start_date: $('#startDate').val(),
+            end_date: $('#endDate').val(),
+            frequency: $('#frequencySelect').val(),
+            chart_type: $('#chartTypeSelect').val(),
+            ma_short: $('#maShort').val(),
+            ma_long: $('#maLong').val()
+        };
+        
+        $.get('/api/technical_analysis', params)
+            .done(function(data) {
+                if (data.success) {
+                    Plotly.newPlot('technicalChart', JSON.parse(data.chart).data, JSON.parse(data.chart).layout);
+                    updateTechnicalStats(data.stats);
+                    $('#rsi').text(data.rsi.toFixed(1));
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .fail(function() {
+                alert('Failed to load technical analysis');
+            });
+    }
+    
+    function updateTechnicalStats(stats) {
+        $('#meanPrice').text('$' + stats.mean_price.toFixed(2));
+        $('#medianPrice').text('$' + stats.median_price.toFixed(2));
+        $('#stdPrice').text('$' + stats.std_price.toFixed(2));
+        $('#minPrice').text('$' + stats.min_price.toFixed(2));
+        $('#maxPrice').text('$' + stats.max_price.toFixed(2));
+        $('#meanVolume').text(stats.mean_volume.toLocaleString());
+        $('#maxVolume').text(stats.max_volume.toLocaleString());
+    }
+    
+    function loadFundamentalAnalysis() {
+        showLoading('Analyzing fundamental data...');
+        
+        const params = {
+            symbol: $('#stockSelect').val(),
+            start_date: $('#startDate').val(),
+            end_date: $('#endDate').val(),
+            frequency: $('#frequencySelect').val()
+        };
+        
+        $.get('/api/fundamental_analysis', params)
+            .done(function(data) {
+                if (data.success) {
+                    updateFundamentalStats(data.stats);
+                    Plotly.newPlot('priceDistribution', JSON.parse(data.price_distribution).data, JSON.parse(data.price_distribution).layout);
+                    Plotly.newPlot('returnsChart', JSON.parse(data.returns_chart).data, JSON.parse(data.returns_chart).layout);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .fail(function() {
+                alert('Failed to load fundamental analysis');
+            })
+            .always(function() {
+                hideLoading();
+            });
+    }
+    
+    function updateFundamentalStats(stats) {
+        $('#totalReturn').text(stats.total_return.toFixed(2) + '%');
+        $('#volatility').text(stats.volatility.toFixed(2) + '%');
+        $('#sharpeRatio').text(stats.sharpe_ratio.toFixed(2));
+        $('#maxDrawdown').text(stats.max_drawdown.toFixed(2) + '%');
+        $('#avgDailyReturn').text(stats.avg_daily_return.toFixed(2) + '%');
+    }
+    
+    function generatePrediction() {
+        showLoading('Generating prediction...');
+        
+        const params = {
+            symbol: $('#stockSelect').val(),
+            model_type: $('#modelType').val(),
+            prediction_days: $('#predictionDays').val(),
+            start_date: $('#startDate').val(),
+            end_date: $('#endDate').val(),
+            frequency: $('#frequencySelect').val()
+        };
+        
+        $.get('/api/prediction', params)
+            .done(function(data) {
+                if (data.success) {
+                    updatePredictionResults(data);
+                    Plotly.newPlot('predictionChart', JSON.parse(data.chart).data, JSON.parse(data.chart).layout);
+                    $('#predictionResults').show();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .fail(function() {
+                alert('Failed to generate prediction');
+            })
+            .always(function() {
+                hideLoading();
+            });
+    }
+    
+    function updatePredictionResults(data) {
+        if (data.summary) {
+            $('#predCurrentPrice').text('$' + data.summary.current_price.toFixed(2));
+            $('#predictedPrice').text('$' + data.summary.predicted_price.toFixed(2));
+            
+            const changeText = data.summary.price_change >= 0 ? '+' : '';
+            $('#expectedChange').html(`${changeText}$${data.summary.price_change.toFixed(2)} <small>(${data.summary.change_percent.toFixed(2)}%)</small>`);
+        }
+    }
+    
+    function compareModels() {
+        showLoading('Comparing models...');
+        
+        const params = {
+            symbol: $('#stockSelect').val(),
+            prediction_days: $('#predictionDays').val(),
+            start_date: $('#startDate').val(),
+            end_date: $('#endDate').val(),
+            frequency: $('#frequencySelect').val()
+        };
+        
+        $.get('/api/model_comparison', params)
+            .done(function(data) {
+                if (data.success) {
+                    updateModelComparison(data.comparison);
+                    $('#modelComparison').show();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .fail(function() {
+                alert('Failed to compare models');
+            })
+            .always(function() {
+                hideLoading();
+            });
+    }
+    
+    function updateModelComparison(comparison) {
+        const tbody = $('#comparisonTable');
+        tbody.empty();
+        
+        comparison.forEach(function(model) {
+            tbody.append(`
+                <tr>
+                    <td>${model.Model}</td>
+                    <td>${model['Next Day Prediction']}</td>
+                    <td>${model['Week Average']}</td>
+                    <td>${model['Confidence Range']}</td>
+                </tr>
+            `);
+        });
+    }
+    
+    function sendChatMessage() {
+        const message = $('#chatInput').val().trim();
+        const apiKey = $('#apiKey').val().trim();
+        
+        if (!message) return;
+        if (!apiKey) {
+            alert('Please enter your OpenAI API key first.');
+            return;
+        }
+        
+        // Add user message to chat
+        addChatMessage(message, 'user');
+        $('#chatInput').val('');
+        
+        // Show typing indicator
+        const typingId = addChatMessage('Typing...', 'bot');
+        
+        // Send to API
+        $.ajax({
+            url: '/api/chatbot',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                message: message,
+                api_key: apiKey
+            }),
+            success: function(data) {
+                // Remove typing indicator
+                $(`#${typingId}`).remove();
+                
+                if (data.success) {
+                    addChatMessage(data.response, 'bot');
+                } else {
+                    addChatMessage('Sorry, I encountered an error: ' + data.error, 'bot');
+                }
+            },
+            error: function() {
+                $(`#${typingId}`).remove();
+                addChatMessage('Sorry, I encountered a connection error. Please try again.', 'bot');
+            }
+        });
+    }
+    
+    function addChatMessage(message, sender) {
+        const messageId = 'msg_' + Date.now();
+        const messageClass = sender === 'user' ? 'chat-user' : 'chat-bot';
+        const senderLabel = sender === 'user' ? 'You' : 'AI Assistant';
+        
+        const messageHtml = `
+            <div class="chat-message ${messageClass}" id="${messageId}">
+                <strong>${senderLabel}:</strong> ${message}
+            </div>
+        `;
+        
+        $('#chatContainer').append(messageHtml);
+        $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
+        
+        return messageId;
+    }
+});
+</script>
+{% endblock %}
